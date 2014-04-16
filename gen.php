@@ -65,23 +65,23 @@ foreach($advisories as $identifier => $advisory) {
 	$output = $wwwrepo . '/advisories/' . $advisory->Software . '/' . $identifier;
 	$template = file_get_contents(__DIR__.'/advisory-template.php');
 	// Insert the data
-	$template = str_replace('<<TITLE>>', htmlentities($advisory->Title), $template);
-	$template = str_replace('<<IDENTIFIER>>', htmlentities($identifier), $template);
-	$template = str_replace('<<DATE>>', htmlentities(date('jS F o', $advisory->Timestamp)), $template);
-	$template = str_replace('<<LEVEL>>', htmlentities($risklevel[$advisory->Risk]), $template);
-	$template = str_replace('<<DESCRIPTION>>', htmlentities($advisory->Description), $template);
+	$template = str_replace('<<TITLE>>', $advisory->Title, $template);
+	$template = str_replace('<<IDENTIFIER>>', $identifier, $template);
+	$template = str_replace('<<DATE>>', date('jS F o', $advisory->Timestamp), $template);
+	$template = str_replace('<<LEVEL>>', $risklevel[$advisory->Risk], $template);
+	$template = str_replace('<<DESCRIPTION>>', $advisory->Description, $template);
 	$affectedversions = '';
 	foreach($advisory->Affected as $affected) {
 		$operator = isset($affected->Operator) ? $affected->Operator.' ' : '';
 		$affectedversions .= '<li>ownCloud Server '.$operator.'<strong>'.$affected->Version.'</strong> ('.$affected->CVE.')</li>';
 	}
-	$template = str_replace('<<AFFECTEDVERSIONS>>', htmlentities($affectedversions), $template);
-	$template = str_replace('<<ACTION>>', htmlentities($advisory->ActionTaken), $template);
+	$template = str_replace('<<AFFECTEDVERSIONS>>', $affectedversions, $template);
+	$template = str_replace('<<ACTION>>', $advisory->ActionTaken, $template);
 	$acknowledgments = '';
 	foreach($advisory->Acknowledgment as $acknowledgment) {
 		$acknowledgments .= '<li>'.$acknowledgment->Name.' - '.$acknowledgment->Company.' ('.$acknowledgment->Mail.') - '.$acknowledgment->Reason.'</li>';
 	}
-	$template = str_replace('<<ACKNOWLEDGMENTS>>', htmlentities($acknowledgments), $template);
+	$template = str_replace('<<ACKNOWLEDGMENTS>>', $acknowledgments, $template);
 	file_put_contents($wwwrepo . '/advisories/' . $identifier . '.php', $template);
 }
 
