@@ -60,7 +60,7 @@ foreach($advisoryfiles as $advisoryfile) {
 	$advisories[basename($advisoryfile, '.json')] = $data;
 }
 
-// 1.2 - Generate the PHP files
+// 1.2 - Generate the PHP advisory files
 foreach($advisories as $identifier => $advisory) {
 	$output = $wwwrepo . '/advisories/' . $advisory->Software . '/' . $identifier;
 	$template = file_get_contents(__DIR__.'/advisory-template.php');
@@ -101,12 +101,14 @@ foreach($advisories as $identifier => $advisory) {
 		$versions[$advisory->Software][$affected->Version][$identifier] = $advisory;
 	}
 }
+$versions = sortVersionArray($versions);
 
 // 2.2 - Generate the main advisories page lists
 foreach($software as $type) {
 	 $data = '';
 	 foreach($versions[$type] as $version => $advisories) {
 	 	$data .= '<p>Version ' . $version . "</p>\n";
+	 	$advisories = sortAdvisoriesByDate($advisories);
 	 	foreach($advisories as $identifier => $advisory) {
 	 		$data .= '<a href="/security/advisory?id='.$identifier.'">'.$advisory->Title.'</a><br>'."\n";
 	 	}
@@ -119,8 +121,51 @@ foreach($software as $type) {
 $data = '';
 foreach($software as $type) {
 	$data .= '<p>ownCloud '.ucwords($type).'</p>'."\n";
-	// Add 5 latest of each TODO
+	$count = 0;
+	foreach($versions[$type] as $version => $advisories) {
+		foreach($advisories as $advisory) {
+			
+		}
+	}
 }
 file_put_contents($wwwrepo . '/advisories/advisory-side.php', $data);
 
+
+// FUNCTION DEFINITIONS
+function sortAdvisoriesByDate($advisories) {
+	usort($advisories, function($a, $b) {
+		if($a->Timestamp < $b->Timestamp) {
+			return -1;
+		} elseif($a->Timestamp > $b->Timestamp){
+			return 1;
+		} else {
+			return 0;
+		}
+	});
+	return $advisories;
+}
+
+function sortVersionArray($array) {
+	$final = array();
+	foreach($array as $type => $versions) {
+		if(!empty($versions)) {
+			foreach($versions as $version => $advisories) {
+				$versionStrings[] = $version;
+			}
+
+			usort($versionStrings, function($a, $b) {
+				// Compare major versions
+				return version_compare($a, $b);
+			});
+			$newVersions = array();
+			foreach($versionStrings as $versionString) {
+				$newVersions[] = $versions[$versionString];
+			}
+			$final[$type] = $newVersions;
+		} else {
+			$final[$type] = array();
+		}
+	}
+	return $final;
+}
 ?>
