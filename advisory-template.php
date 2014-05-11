@@ -9,21 +9,21 @@
 		<?php get_template_part('advisories/single-side-list'); ?>
 	</div>
 	<div class="col-md-9">
-		<h2><<TITLE>> (<<IDENTIFIER>>)</h2>
-		<p><<DATE>></p>
-		<p>Risk level: <strong><<LEVEL>></strong></p>
+		<h2>~~TITLE~~ (~~IDENTIFIER~~)</h2>
+		<p>~~DATE~~</p>
+		<p>Risk level: <strong>~~LEVEL~~</strong></p>
 		<h3>Description</h3>
-		<p><<DESCRIPTION>>>></p>
+		<p>~~DESCRIPTION~~</p>
 		<h3>Affected Software</h3>
 		<ul>
-			<<AFFECTEDVERSIONS>>
+			~~AFFECTEDVERSIONS~~
 		</ul>
 		<h3>Action Taken</h3>
-		<p><<ACTION>></p>
+		<p>~~ACTION~~</p>
 		<h3>Acknowledgements</h3>
 		<p>The ownCloud team thanks the following people for their research and responsible disclosure of the above advisory:</p>
 		<ul>
-			<<ACKNOWLEDGMENTS>>
+			~~ACKNOWLEDGMENTS~~
 		</ul>
 		</br>
 	</div>

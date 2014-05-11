@@ -48,43 +48,52 @@ foreach($software as $type) {
 	$files = scandir($advisoriesdir.'/'.$type);
 	foreach($files as $file) {
 		if($file != '.' && $file != '..') {
-			$advisoryfiles[basename($file, '.json')] = $advisoriesdir . '/' . $type . '/' . $file;
+			$advisoryfiles[$type][basename($file, '.json')] = $advisoriesdir . '/' . $type . '/' . $file;
 		}
 	}
 }
 
-foreach($advisoryfiles as $advisoryfile) {
-	// Read the file
-	$file = file_get_contents($advisoryfile);
-	$data = json_decode($file);
-	$advisories[basename($advisoryfile, '.json')] = $data;
+foreach($software as $type) {
+	if(!empty($advisoryfiles[$type])){
+		foreach($advisoryfiles[$type] as $advisoryfile) {
+			// Read the file
+			$file = file_get_contents($advisoryfile);
+			$data = json_decode($file);
+			if(!is_null($data)) {
+				$advisories[$type][basename($advisoryfile, '.json')] = $data;
+			}
+		}
+	}
 }
 
 // 1.2 - Generate the PHP advisory files
-foreach($advisories as $identifier => $advisory) {
-	$output = $wwwrepo . '/advisories/' . $advisory->Software . '/' . $identifier;
-	$template = file_get_contents(__DIR__.'/advisory-template.php');
-	// Insert the data
-	$template = str_replace('<<TITLE>>', htmlentities($advisory->Title), $template);
-	$template = str_replace('<<IDENTIFIER>>', htmlentities($identifier), $template);
-	$template = str_replace('<<DATE>>', htmlentities(date('jS F o', $advisory->Timestamp)), $template);
-	$template = str_replace('<<LEVEL>>', htmlentities($risklevel[$advisory->Risk]), $template);
-	$template = str_replace('<<DESCRIPTION>>', htmlentities($advisory->Description), $template);
-	$affectedversions = '';
-	foreach($advisory->Affected as $affected) {
-		$operator = isset($affected->Operator) ? $affected->Operator.' ' : '';
-		$affectedversions .= '<li>ownCloud Server '.$operator.'<strong>'.$affected->Version.'</strong> ('.$affected->CVE.')</li>';
+foreach($software as $type){
+	if(!empty($advisories[$type])) {
+		foreach($advisories[$type] as $identifier => $advisory) {
+			$output = $wwwrepo . '/advisories/' . $type . '/' . $identifier;
+			$template = file_get_contents(__DIR__.'/advisory-template.php');
+			// Insert the data
+			$template = str_replace('~~TITLE~~', htmlentities($advisory->Title), $template);
+			$template = str_replace('~~IDENTIFIER~~', htmlentities($identifier), $template);die(var_dump($advisory));
+			$template = str_replace('~~DATE~~', htmlentities(date('jS F o', $advisory->Timestamp)), $template);
+			$template = str_replace('~~LEVEL~~', htmlentities($risklevel[$advisory->Risk]), $template);
+			$template = str_replace('~~DESCRIPTION~~', htmlentities($advisory->Description), $template);
+			$affectedversions = '';
+			foreach($advisory->Affected as $affected) {
+				$operator = isset($affected->Operator) ? $affected->Operator.' ' : '';
+				$affectedversions .= '<li>ownCloud Server '.$operator.'<strong>'.$affected->Version.'</strong> ('.$affected->CVE.')</li>';
+			}
+			$template = str_replace('~~AFFECTEDVERSIONS~~', htmlentities($affectedversions), $template);
+			$template = str_replace('~~ACTION~~', htmlentities($advisory->ActionTaken), $template);
+			$acknowledgments = '';
+			foreach($advisory->Acknowledgment as $acknowledgment) {
+				$acknowledgments .= '<li>'.$acknowledgment->Name.' - '.$acknowledgment->Company.' ('.$acknowledgment->Mail.') - '.$acknowledgment->Reason.'</li>';
+			}
+			$template = str_replace('~~ACKNOWLEDGMENTS~~', htmlentities($acknowledgments), $template);
+			file_put_contents($wwwrepo . '/advisories/' . $identifier . '.php', $template);
+		}
 	}
-	$template = str_replace('<<AFFECTEDVERSIONS>>', htmlentities($affectedversions), $template);
-	$template = str_replace('<<ACTION>>', htmlentities($advisory->ActionTaken), $template);
-	$acknowledgments = '';
-	foreach($advisory->Acknowledgment as $acknowledgment) {
-		$acknowledgments .= '<li>'.$acknowledgment->Name.' - '.$acknowledgment->Company.' ('.$acknowledgment->Mail.') - '.$acknowledgment->Reason.'</li>';
-	}
-	$template = str_replace('<<ACKNOWLEDGMENTS>>', htmlentities($acknowledgments), $template);
-	file_put_contents($wwwrepo . '/advisories/' . $identifier . '.php', $template);
 }
-
 // PART 2 - Generate the menus and lists
 
 // 2.1 - Sort the advisories into versions
@@ -93,12 +102,14 @@ foreach($software as $type) {
 	$versions[$type] = array();
 }
 
-foreach($advisories as $identifier => $advisory) {
-	foreach($advisory->Affected as $affected) {
-		if(!array_key_exists($affected->Version, $versions[$advisory->Software])) {
-			$versions[$advisory->Software][$affected->Version] = array();
+foreach($software as $type){
+	foreach($advisories[$type] as $identifier => $advisory) {
+		foreach($advisory->Affected as $affected) {
+			if(!array_key_exists($affected->Version, $versions[$type])) {
+				$versions[$type][$affected->Version] = array();
+			}
+			$versions[$type][$affected->Version][$identifier] = $advisory;
 		}
-		$versions[$advisory->Software][$affected->Version][$identifier] = $advisory;
 	}
 }
 $versions = sortVersionArray($versions);
@@ -123,8 +134,13 @@ foreach($software as $type) {
 	$data .= '<p>ownCloud '.ucwords($type).'</p>'."\n";
 	$count = 0;
 	foreach($versions[$type] as $version => $advisories) {
-		foreach($advisories as $advisory) {
-			
+		foreach($advisories as $identifier => $advisory) {
+			if($count != 5) {
+				$data .= '<a href="/security/advisory?id='.$identifier.'">'.$advisory->Title.'</a></br>';
+				$count++;
+			} else {
+				break;
+			}
 		}
 	}
 }
