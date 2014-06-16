@@ -135,7 +135,7 @@ foreach($software as $type) {
 	$count = 0;
 	foreach($versions[$type] as $version => $advisories) {
 		foreach($advisories as $identifier => $advisory) {
-			if($count <= 5) {
+			if($count < 5) {
 				$count++;
 				$data .= '<a href="/security/advisory?id='.$identifier.'">'.$advisory->Title.'</a></br>';
 			} else {
