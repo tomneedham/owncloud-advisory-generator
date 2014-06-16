@@ -1,14 +1,14 @@
 <div class="row page-content-header">
 	<div class="col-md-4">
 		<h1>Security Advisory</h1>
-		<a href="/security/advisories/feed" class="rss-button">RSS</a>
+		<a style="margin-left: 0.5em;" href="/security/advisories/">Back to advisories</a>
 	</div>
 </div>
 <div class="row">
-	<div class="col-md-3">
-		<?php get_template_part('advisories/single-side-list'); ?>
+	<div class="col-md-4">
+		<?php get_template_part('advisories/advisory-side'); ?>
 	</div>
-	<div class="col-md-9">
+	<div class="col-md-8">
 		<h2>~~TITLE~~ (~~IDENTIFIER~~)</h2>
 		<p>~~DATE~~</p>
 		<p>Risk level: <strong>~~LEVEL~~</strong></p>

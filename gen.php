@@ -36,7 +36,7 @@
 $advisoriesdir = $argv[1];
 $wwwrepo = $argv[2];
 $advisoryfiles = array();
-$software = array('desktop', 'mobile', 'server');
+$software = array('server', 'mobile', 'desktop');
 $risklevel = array(
 	1 => 'Low',
 	2 => 'Medium',
@@ -73,23 +73,23 @@ foreach($software as $type){
 			$output = $wwwrepo . '/advisories/' . $type . '/' . $identifier;
 			$template = file_get_contents(__DIR__.'/advisory-template.php');
 			// Insert the data
-			$template = str_replace('~~TITLE~~', htmlentities($advisory->Title), $template);
-			$template = str_replace('~~IDENTIFIER~~', htmlentities($identifier), $template);die(var_dump($advisory));
+			$template = str_replace('~~TITLE~~', $advisory->Title, $template);
+			$template = str_replace('~~IDENTIFIER~~', htmlentities($identifier), $template);
 			$template = str_replace('~~DATE~~', htmlentities(date('jS F o', $advisory->Timestamp)), $template);
-			$template = str_replace('~~LEVEL~~', htmlentities($risklevel[$advisory->Risk]), $template);
-			$template = str_replace('~~DESCRIPTION~~', htmlentities($advisory->Description), $template);
+			$template = str_replace('~~LEVEL~~', $risklevel[$advisory->Risk], $template);
+			$template = str_replace('~~DESCRIPTION~~', $advisory->Description, $template);
 			$affectedversions = '';
 			foreach($advisory->Affected as $affected) {
 				$operator = isset($affected->Operator) ? $affected->Operator.' ' : '';
 				$affectedversions .= '<li>ownCloud Server '.$operator.'<strong>'.$affected->Version.'</strong> ('.$affected->CVE.')</li>';
 			}
-			$template = str_replace('~~AFFECTEDVERSIONS~~', htmlentities($affectedversions), $template);
-			$template = str_replace('~~ACTION~~', htmlentities($advisory->ActionTaken), $template);
+			$template = str_replace('~~AFFECTEDVERSIONS~~', $affectedversions, $template);
+			$template = str_replace('~~ACTION~~', $advisory->ActionTaken, $template);
 			$acknowledgments = '';
 			foreach($advisory->Acknowledgment as $acknowledgment) {
 				$acknowledgments .= '<li>'.$acknowledgment->Name.' - '.$acknowledgment->Company.' ('.$acknowledgment->Mail.') - '.$acknowledgment->Reason.'</li>';
 			}
-			$template = str_replace('~~ACKNOWLEDGMENTS~~', htmlentities($acknowledgments), $template);
+			$template = str_replace('~~ACKNOWLEDGMENTS~~', $acknowledgments, $template);
 			file_put_contents($wwwrepo . '/advisories/' . $identifier . '.php', $template);
 		}
 	}
@@ -120,10 +120,10 @@ foreach($software as $type) {
 	 foreach($versions[$type] as $version => $advisories) {
 	 	$data .= '<p>Version ' . $version . "</p>\n";
 	 	$advisories = sortAdvisoriesByDate($advisories);
-	 	foreach($advisories as $identifier => $advisory) {
-	 		$data .= '<a href="/security/advisory?id='.$identifier.'">'.$advisory->Title.'</a><br>'."\n";
+	 	foreach($advisories as $advisory) {
+	 		$data .= '<a href="/security/advisory?id='.$advisory->identifier.'">'.$advisory->Title.'</a><br>'."\n";
 	 	}
-	 	$data .= '<br><br>'."\n";
+	 	$data .= '<br>'."\n";
 	 }
 	 file_put_contents($wwwrepo . '/advisories/' . $type . '-list-part.php', $data);
 }
@@ -135,9 +135,9 @@ foreach($software as $type) {
 	$count = 0;
 	foreach($versions[$type] as $version => $advisories) {
 		foreach($advisories as $identifier => $advisory) {
-			if($count != 5) {
-				$data .= '<a href="/security/advisory?id='.$identifier.'">'.$advisory->Title.'</a></br>';
+			if($count <= 5) {
 				$count++;
+				$data .= '<a href="/security/advisory?id='.$identifier.'">'.$advisory->Title.'</a></br>';
 			} else {
 				break;
 			}
@@ -149,6 +149,9 @@ file_put_contents($wwwrepo . '/advisories/advisory-side.php', $data);
 
 // FUNCTION DEFINITIONS
 function sortAdvisoriesByDate($advisories) {
+	foreach ($advisories as $id => $ad) {
+		$ad->identifier = $id;
+	}
 	usort($advisories, function($a, $b) {
 		if($a->Timestamp < $b->Timestamp) {
 			return -1;
@@ -168,14 +171,14 @@ function sortVersionArray($array) {
 			foreach($versions as $version => $advisories) {
 				$versionStrings[] = $version;
 			}
-
 			usort($versionStrings, function($a, $b) {
 				// Compare major versions
-				return version_compare($a, $b);
+				return version_compare($b, $a);
 			});
+
 			$newVersions = array();
 			foreach($versionStrings as $versionString) {
-				$newVersions[] = $versions[$versionString];
+				$newVersions[$versionString] = $versions[$versionString];
 			}
 			$final[$type] = $newVersions;
 		} else {
