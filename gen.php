@@ -29,7 +29,7 @@
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
+date_default_timezone_set('Europe/London');
 // PART 1 - Create the advisory files
 
 // 1.1 - Read the json files
@@ -42,16 +42,26 @@ $risklevel = array(
 	2 => 'Medium',
 	3 => 'High',
 	);
-$advisories = array();
+$advisories = array(
+	'server' => array(),
+	'desktop' => array(),
+	'mobile' => array(),
+	);
+$adFound = 0;
+$adCount = 0;
 
 foreach($software as $type) {
 	$files = scandir($advisoriesdir.'/'.$type);
 	foreach($files as $file) {
-		if($file != '.' && $file != '..') {
-			$advisoryfiles[$type][basename($file, '.json')] = $advisoriesdir . '/' . $type . '/' . $file;
+		if($file != '.' && $file != '..' && $file != '.DS_Store') {
+			$advisoryfiles[$type][basename($file, '.json')] = $advisoriesdir . $type . '/' . $file;
+			$adFound++;
 		}
 	}
 }
+
+//DEBUG
+//print_r($advisoryfiles);
 
 foreach($software as $type) {
 	if(!empty($advisoryfiles[$type])){
@@ -61,39 +71,74 @@ foreach($software as $type) {
 			$data = json_decode($file);
 			if(!is_null($data)) {
 				$advisories[$type][basename($advisoryfile, '.json')] = $data;
+			} else {
+				echo 'Error decoding data for: '.basename($advisoryfile, '.json')."\n";
 			}
 		}
 	}
 }
 
+//print_r($advisories);
+
 // 1.2 - Generate the PHP advisory files
 foreach($software as $type){
 	if(!empty($advisories[$type])) {
 		foreach($advisories[$type] as $identifier => $advisory) {
-			$output = $wwwrepo . '/advisories/' . $type . '/' . $identifier;
-			$template = file_get_contents(__DIR__.'/advisory-template.php');
-			// Insert the data
-			$template = str_replace('~~TITLE~~', $advisory->Title, $template);
-			$template = str_replace('~~IDENTIFIER~~', htmlentities($identifier), $template);
-			$template = str_replace('~~DATE~~', htmlentities(date('jS F o', $advisory->Timestamp)), $template);
-			$template = str_replace('~~LEVEL~~', $risklevel[$advisory->Risk], $template);
-			$template = str_replace('~~DESCRIPTION~~', $advisory->Description, $template);
-			$affectedversions = '';
-			foreach($advisory->Affected as $affected) {
-				$operator = isset($affected->Operator) ? $affected->Operator.' ' : '';
-				$affectedversions .= '<li>ownCloud Server '.$operator.'<strong>'.$affected->Version.'</strong> ('.$affected->CVE.')</li>';
+			// Debug
+			echo ' Starting generation for: '.$identifier."\n";
+			// Check for missing data!
+			$fields = array(
+				'Title',
+				'Timestamp',
+				'Risk',
+				'Description',
+				'Affected'
+				);
+			$continue = true;
+			foreach($fields as $field) {
+				// Check is present
+				if(!isset($advisory->{$field})) {
+					echo 'Advisory: '.$identifier.' is missing the \''.$field.'\' field.'."\n";
+					$continue = false;
+				}
 			}
-			$template = str_replace('~~AFFECTEDVERSIONS~~', $affectedversions, $template);
-			$template = str_replace('~~ACTION~~', $advisory->ActionTaken, $template);
-			$acknowledgments = '';
-			foreach($advisory->Acknowledgment as $acknowledgment) {
-				$acknowledgments .= '<li>'.$acknowledgment->Name.' - '.$acknowledgment->Company.' ('.$acknowledgment->Mail.') - '.$acknowledgment->Reason.'</li>';
+			if($continue) {
+				$output = $wwwrepo . '/advisories/' . $type . '/' . $identifier;
+				$template = file_get_contents(__DIR__.'/advisory-template.php');
+				// Insert the data
+				$template = str_replace('~~TITLE~~', $advisory->Title, $template);
+				$template = str_replace('~~IDENTIFIER~~', htmlentities(str_replace('(oc-sa-', '(oC-SA-', $identifier)), $template);
+				$template = str_replace('~~DATE~~', htmlentities(date('jS F o', $advisory->Timestamp)), $template);
+				$template = str_replace('~~LEVEL~~', $risklevel[$advisory->Risk], $template);
+				$template = str_replace('~~DESCRIPTION~~', $advisory->Description, $template);
+				$affectedversions = '';
+				foreach($advisory->Affected as $affected) {
+					$operator = isset($affected->Operator) ? $affected->Operator.' ' : '';
+					$affectedversions .= '<li>ownCloud Server '.$operator.'<strong>'.$affected->Version.'</strong> ('.$affected->CVE.')</li>';
+				}
+				$template = str_replace('~~AFFECTEDVERSIONS~~', $affectedversions, $template);
+				$action = isset($advisory->ActionTaken) ? $advisory->ActionTaken : '';
+				$template = str_replace('~~ACTION~~', $action, $template);
+				$acknowledgments = '';
+				if(isset($advisory->Acknowledgment)) {
+					foreach($advisory->Acknowledgment as $acknowledgment) {
+						$company = isset($acknowledgment->Company) ? $acknowledgment->Company : '';
+						$mail = isset($acknowledgment->Mail) ? $acknowledgment->Mail : '';
+						$reason = isset($acknowledgment->Reason) ? $acknowledgment->Reason : '';
+						$acknowledgments .= '<li>'.$acknowledgment->Name.' - '.$company.' ('.$mail.') - '.$reason.'</li>';
+					}
+				}
+				$template = str_replace('~~ACKNOWLEDGMENTS~~', $acknowledgments, $template);
+				file_put_contents($wwwrepo . '/advisories/' . $identifier . '.php', $template);
+				$adCount++;
+			} else {
+				// Some fields missing
+				echo 'FAILED. Some fields missing for advisory: '.$identifier."\n";
 			}
-			$template = str_replace('~~ACKNOWLEDGMENTS~~', $acknowledgments, $template);
-			file_put_contents($wwwrepo . '/advisories/' . $identifier . '.php', $template);
 		}
 	}
 }
+echo 'Completed creating html files for '.$adCount.' of '.$adFound.' advisories found.'."\n";
 // PART 2 - Generate the menus and lists
 
 // 2.1 - Sort the advisories into versions
