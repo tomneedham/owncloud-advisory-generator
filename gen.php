@@ -107,7 +107,7 @@ foreach($software as $type){
 				$template = file_get_contents(__DIR__.'/advisory-template.php');
 				// Insert the data
 				$template = str_replace('~~TITLE~~', $advisory->Title, $template);
-				$template = str_replace('~~IDENTIFIER~~', htmlentities(str_replace('(oc-sa-', '(oC-SA-', $identifier)), $template);
+				$template = str_replace('~~IDENTIFIER~~', htmlentities(str_replace('oc-sa-', 'oC-SA-', $identifier)), $template);
 				$template = str_replace('~~DATE~~', htmlentities(date('jS F o', $advisory->Timestamp)), $template);
 				$template = str_replace('~~LEVEL~~', $risklevel[$advisory->Risk], $template);
 				$template = str_replace('~~DESCRIPTION~~', $advisory->Description, $template);
