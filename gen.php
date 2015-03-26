@@ -13,7 +13,7 @@
  * Part 2: It recreates the lists and menus that list the advisories.
  *
  * Usage: php gen.php <ADVISORIES REPO DIR> <WWW REPO DIR>
- * (example) 'php gen.php /home/tom/security-advisories /home/tom/www'
+ * (example) 'php gen.php /home/tom/security-advisories/ /home/tom/www/'
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -29,7 +29,11 @@
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+
+/* SOME CONFIG */
+
 date_default_timezone_set('Europe/London');
+
 // PART 1 - Create the advisory files
 
 // 1.1 - Read the json files
@@ -51,7 +55,9 @@ $adFound = 0;
 $adCount = 0;
 
 foreach($software as $type) {
-	$files = scandir($advisoriesdir.'/'.$type);
+	// Scan for advisories. Hush warnings about missing type folders
+	$files = @scandir($advisoriesdir.$type);
+	if(!$files) { continue; }
 	foreach($files as $file) {
 		if($file != '.' && $file != '..' && $file != '.DS_Store') {
 			$advisoryfiles[$type][basename($file, '.json')] = $advisoriesdir . $type . '/' . $file;
@@ -60,9 +66,9 @@ foreach($software as $type) {
 	}
 }
 
-//DEBUG
-//print_r($advisoryfiles);
+echo "Detected ".$adFound." advisories.\n";
 
+// 1.2 - Decode the JSON
 foreach($software as $type) {
 	if(!empty($advisoryfiles[$type])){
 		foreach($advisoryfiles[$type] as $advisoryfile) {
@@ -78,14 +84,12 @@ foreach($software as $type) {
 	}
 }
 
-//print_r($advisories);
-
-// 1.2 - Generate the PHP advisory files
+// 1.3 - Generate the PHP advisory files
+echo "Generating advisory files...\n";
 foreach($software as $type){
 	if(!empty($advisories[$type])) {
 		foreach($advisories[$type] as $identifier => $advisory) {
-			// Debug
-			echo ' Starting generation for: '.$identifier."\n";
+			echo '.';
 			// Check for missing data!
 			$fields = array(
 				'Title',
@@ -103,7 +107,7 @@ foreach($software as $type){
 				}
 			}
 			if($continue) {
-				$output = $wwwrepo . '/advisories/' . $type . '/' . $identifier;
+				$output = $wwwrepo . 'advisories/' . $type . '/' . $identifier;
 				$template = file_get_contents(__DIR__.'/advisory-template.php');
 				// Insert the data
 				$template = str_replace('~~TITLE~~', $advisory->Title, $template);
@@ -129,7 +133,7 @@ foreach($software as $type){
 					}
 				}
 				$template = str_replace('~~ACKNOWLEDGMENTS~~', $acknowledgments, $template);
-				file_put_contents($wwwrepo . '/advisories/' . $identifier . '.php', $template);
+				file_put_contents($wwwrepo . 'advisories/' . $identifier . '.php', $template);
 				$adCount++;
 			} else {
 				// Some fields missing
@@ -138,7 +142,10 @@ foreach($software as $type){
 		}
 	}
 }
-echo 'Completed creating html files for '.$adCount.' of '.$adFound.' advisories found.'."\n";
+echo "\n".$adCount." advisories created.\n";
+if($adFound-$adCount != 0) { echo "ERROR: Failed to create HTML for ".($adFound-$adCount)." advisories.\n"; }
+
+
 // PART 2 - Generate the menus and lists
 
 // 2.1 - Sort the advisories into versions
@@ -170,7 +177,7 @@ foreach($software as $type) {
 	 	}
 	 	$data .= '<br>'."\n";
 	 }
-	 file_put_contents($wwwrepo . '/advisories/' . $type . '-list-part.php', $data);
+	 file_put_contents($wwwrepo . 'advisories/' . $type . '-list-part.php', $data);
 }
 
 // 2.3 - Generate the lists at the side of the advisories
@@ -189,10 +196,13 @@ foreach($software as $type) {
 		}
 	}
 }
-file_put_contents($wwwrepo . '/advisories/advisory-side.php', $data);
+file_put_contents($wwwrepo . 'advisories/advisory-side.php', $data);
 
+/* FUNCTION DEFINITIONS */
 
-// FUNCTION DEFINITIONS
+/**
+ * Sort the JSON advisory objects by their timestamps for chronological lists
+ */
 function sortAdvisoriesByDate($advisories) {
 	foreach ($advisories as $id => $ad) {
 		$ad->identifier = $id;
@@ -209,6 +219,9 @@ function sortAdvisoriesByDate($advisories) {
 	return $advisories;
 }
 
+/**
+ * Sorts the JSON advisory objects by their version strings
+ */
 function sortVersionArray($array) {
 	$final = array();
 	foreach($array as $type => $versions) {
